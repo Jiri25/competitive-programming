@@ -1,0 +1,81 @@
+class UnionFind{
+	private int[] parents;
+	
+	public UnionFind(int size) {
+		this.parents = new int[size + 1];
+		//this is faster than initializing with a for-loop
+		java.util.Arrays.fill(parents, -1);
+	}
+	
+	//Average complexity for "each call": O(α(n)) meaning "amortized time".
+	//This average time is achieved by path compression inside find() method. 
+	public void union(int x, int y) {
+		//Expect to return the root verticie's index
+		int rootX = find(x);
+		int rootY = find(y);
+		
+		//if already unified, then terminate the method.
+		//This condition includes edge case handling, so be careful
+		if(rootX == rootY)return; 
+		
+		//-2 > -1, where negative values represent the height of the tree
+		
+		if(parents[rootX] <= parents[rootY]) {
+			parents[rootX] += parents[rootY];
+			parents[rootY] = rootX;
+		}else {   
+			parents[rootY] += parents[rootX];
+			parents[rootX] = rootY;
+		}
+	}
+	
+	/*The recursive approach is faster as it avoids the need for extra loop while
+	 * compressing the path.*/
+	//Average complexity for "each call": O(α(n)) meaning "amortized time".
+	//This average time is achieved by path compression inside find() method. 
+	public int find(int x) {
+		if(parents[x] > -1) {
+			//this method recursion used in here is a super smart way, believe me.
+			//It recurvely updates the verticies along the way and retrieves the root index.
+			
+			//This flatten the tree's height, and thus results in amortized time. O(α(n))
+			parents[x] = x = find(parents[x]);
+		}
+		
+		return x; //return root's index since parents[x] is now storing the index.
+	}
+	
+	public boolean isConnected(int x, int y) {
+		return find(x) == find(y);
+	}
+	
+	public void printStructure() {
+		System.out.println(java.util.Arrays.toString(parents));
+	}
+	
+	//test cases
+	public static void main(String[] args) {
+		UnionFind uf = new UnionFind(10);
+		uf.union(1, 2);
+		uf.union(3, 4);
+		uf.union(1, 4);
+		uf.printStructure();
+		
+		System.out.println(uf.isConnected(1, 2));
+		System.out.println(uf.isConnected(3, 2));
+		
+		uf.union(5, 6);
+		uf.union(7, 8);
+		uf.union(6, 7);
+		uf.printStructure();
+		uf.union(3, 7);
+		uf.printStructure();
+		uf.union(10,7);
+		uf.printStructure();
+		uf.union(9, 4);
+		uf.printStructure();
+		System.out.println(uf.isConnected(8, 6));
+		uf.printStructure();
+		//uf.union(3, 11); this will provoke IllegalArgumentException.
+	}
+}
