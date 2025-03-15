@@ -1,0 +1,485 @@
+#include <iostream>
+#include <stdexcept>
+#include <sstream>
+using namespace std;
+
+template <typename T>
+class List{
+private:
+    struct Node{
+        T value;
+        Node* next_node;
+        Node* prev_node;
+
+        Node(T value) : value(value), next_node(nullptr), prev_node(nullptr) {};
+    };
+
+    Node* head;
+    Node* tail;
+    int length;
+
+public:
+    List() : head(nullptr), tail(nullptr), length(0) {};
+
+    ~List(){
+        Node* current = head;
+        while(current){
+            Node* temp = current;
+            current = current->next_node;
+            delete temp;
+        }
+    }
+    
+private:
+    Node* find_shortest_path(int index){
+        int mid = (length - 1) >> 1;
+        cout << mid << '\n';
+        if(index <= mid){
+            Node* current = head;
+            for(int i = 1; i <= index; i++){
+                current = current->next_node;
+            }
+            return current;
+        }
+        else{
+           Node* current = tail;
+           for(int i = index + 1; i < length; i++){
+                current = current->prev_node;
+           }
+           return current;
+        }
+    }
+
+public:
+    void push_front(T value){
+        Node* new_node = new Node(value);
+        if(!head){
+            head = tail = new_node;
+        }
+        else{
+            new_node->next_node = head;
+            head->prev_node = new_node;
+            head = new_node;
+        }
+
+        length++;
+    }
+
+    void push_back(T value){
+        Node* new_node = new Node(value);
+        if(!tail){
+            head = tail = new_node;
+        }
+        else{
+            tail->next_node = new_node;
+            new_node->prev_node = tail;
+            tail = new_node;
+        }
+
+        length++;
+    }
+
+    void pop_front(){
+        if(length == 0){
+            throw out_of_range("Index out of bounds: 0 for length " + to_string(length));
+        }
+
+        if(length == 1){
+            Node* temp = head;
+            head = tail = nullptr;
+            delete temp;
+        }
+        else{
+            Node* temp = head;
+            head = head->next_node;
+            delete temp; 
+            head->prev_node = nullptr; //remove dangling pointer
+        }
+
+        length--;
+    }
+
+    void pop_back(){
+        if(length == 0){
+            throw out_of_range("Index out of bounds: 0 for length " + to_string(length));
+        }
+
+        if(length == 1){
+            Node* temp = tail;
+            head = tail = nullptr;
+            delete temp;
+        }else{
+            Node* temp = tail;
+            tail = tail->prev_node;
+            delete temp;
+            tail->next_node = nullptr;
+        }
+
+        length--;
+    }
+
+    void insert(int index, T value){
+        if(index < 0 || index > length){
+            throw out_of_range("Index out of bounds: " + to_string(index) + " for length " + to_string(length));
+        }
+
+        if(index == 0){
+            push_front(value);
+            return;
+        }else if(index == length){
+            push_back(value);
+            return;
+        }
+        else{
+            Node* target = find_shortest_path(index);
+            Node* new_node = new Node(value);
+
+            new_node->next_node = target;
+            new_node->prev_node = target->prev_node;
+            target->prev_node->next_node = new_node;
+            target->prev_node = new_node;
+            length++;
+        }
+    }
+
+    void erase(int index){
+        if(index < 0 || index >= length){
+            throw out_of_range("Index out of bounds: " + to_string(index) + " for length " + to_string(length));
+        }
+
+        if(index == 0){
+            pop_front();
+            return;
+        }
+        else if(index == length - 1){
+            pop_back();
+            return;
+        }
+        else{
+            Node* temp = find_shortest_path(index);
+            temp->prev_node->next_node = temp->next_node;
+            temp->next_node->prev_node = temp->prev_node;
+            delete temp;
+            length--;
+        }
+    }
+
+/*Returning reference is more memory efficient than 'T' becuase it avoids copying.
+Copying becomes expensive, especially with objects. Thus, just return ref*/
+
+//const before ref prevents from modifying the object. 
+//const after argument parenthesis tells that the function dones't change the state of the object. 
+    const T& at(int index) const {
+        if(index < 0 || index >= length){
+            throw out_of_range("Index out of bounds: " + to_string(index) + " for length " + to_string(length));
+        }
+
+        Node* target = find_shortest_path(index);
+        return target->value;
+    }
+
+    const T& front() const {
+        if(!head){
+            throw out_of_range("Index out of bounds: 0 for length " + to_string(length));
+        }
+        return head->value;
+    }
+
+    const T& back() const {
+        if(!tail){
+            throw out_of_range("Index out of bounds: 0 for length " + to_string(length));
+        }
+
+        return tail->value;
+    }
+
+    void resize(int size, T default_value = T{}){
+        if(size < 0)return; //avoid undefined behavior
+
+        int difference = length - size;
+        if(difference < 0){
+            for(int i = difference; i < 0; i++){
+                push_back(default_value);
+            }
+        }
+        else{
+        //calling pop_back causes unnecessary pointer shifts, increasing constant factor
+            Node* current = tail;
+            Node* temp;
+            for(int i = difference; i > 0; i--){
+                temp = current;
+                current = current->prev_node;
+                delete temp;
+            }
+
+            length = size;
+
+            if(length == 0){
+                head = tail = nullptr;
+            }else{
+                tail = current;
+                tail->next_node = nullptr; //this is necessary to remove dangling pointer
+            }
+        }
+    }
+
+    void assign(int size, T default_value){
+        if(size < 0)return;
+        int difference = length - size;
+
+        if(difference < 0){
+            Node* current = head;
+            while(current){
+                current->value = default_value;
+                current = current->next_node;
+            }
+
+            for(int i = 0; i < abs(difference); i++){
+                push_back(default_value);
+            }
+        }
+        else{
+            Node* current = tail;
+            Node* temp;
+            for(int i = 0; i < abs(difference); i++){
+                temp = current;
+                current = current->prev_node;
+                delete temp;
+            }
+
+            length = size;
+
+            if(length == 0){
+                head = tail = nullptr;
+                return; //early exit
+            }
+                
+            tail = current;
+            tail->next_node = nullptr;
+
+            current = head;
+            while(current){
+                current->value = default_value;
+                current = current->next_node;
+            }
+        }
+    }
+
+    void clear(){
+        Node* current = head;
+        Node* temp;
+        while(current){
+            temp = current;
+            current = current->next_node;
+            delete temp;
+        }
+        head = tail = nullptr;
+        length = 0;
+    }
+
+    void merge_two_sorted_lists(List<T> &other){
+        if(!other.head)return;
+
+        if(!this->head){
+            this->head = other.head;
+            this->tail = other.tail;
+            this->length = other.length; //this is necessary for printF() and printB()
+            other.head = nullptr;
+            other.tail = nullptr;
+            other.length = 0;
+            return;
+        }
+
+        if(this->head && other.head && this->tail->value <= other.head->value){
+            this->tail->next_node = other.head;
+            other.head->prev_node = this->tail;
+            this->tail = other.tail;
+            other.head = nullptr;
+            other.tail = nullptr;
+            other.length = 0;
+            return;
+        }
+
+        Node dummy(T{});
+        Node* new_tail = &dummy;
+
+        Node* left = this->head, *right = other.head;
+
+        while(left && right){
+            if(right->value < left->value){
+                new_tail->next_node = right;
+                right->prev_node = new_tail;
+                right = right->next_node;
+            }
+            else{
+                new_tail->next_node = left;
+                left->prev_node = new_tail;
+                left = left->next_node;
+            }
+
+            new_tail = new_tail->next_node;
+        }
+
+        if(right){
+            new_tail->next_node = right;
+            right->prev_node = tail;
+            right = right->next_node;
+            tail = other.tail;
+        }
+
+        this->head = dummy.next_node;
+        this->head->prev_node = nullptr; //remove dangling pointer
+        other.head = nullptr;
+        other.tail = nullptr;
+        other.length = 0;
+    }
+
+private:
+//new_start could be null once it goes out of scope
+    pair<Node*, Node*> get_new_start(Node* right_end, int size){ 
+        while(--size && right_end->next_node){
+            right_end = right_end->next_node;
+        }
+
+        Node* new_start = (right_end->next_node)? right_end->next_node : nullptr;
+        right_end->next_node = nullptr; //this is a must for merging process
+        return {right_end, new_start}; //return end and start
+    }
+
+    //if mid is out of bound, both mid and right_start are going to store the last node of the list
+    // mid and right_start could store the same object
+    pair<Node*, Node*> get_mid_right(Node* left_head, int size){
+        while(--size && left_head->next_node){
+            left_head = left_head->next_node;
+        }
+
+        Node* right_head = (left_head->next_node)? left_head->next_node : left_head;
+        left_head->next_node = nullptr; //this is necessary for merging process
+        return {left_head, right_head}; //return mid & mid+ 1
+    }
+
+    pair<Node*, Node*> merge(Node* left_head, Node* mid, Node* right_head, Node* right_end){
+        if(mid->value <= right_head->value){
+            if(mid != right_head){ //not the same object
+                right_head->prev_node = mid;
+                mid->next_node = right_head;
+            }
+            return {left_head, right_end};
+        }
+
+        Node dummy(T{});
+        Node* new_tail = &dummy;
+
+        //case where right_head should've been null is already handled by above early exit.
+        while(left_head && right_head){
+            if(right_head->value < left_head->value){
+                new_tail->next_node = right_head;
+                right_head->prev_node = new_tail;
+                right_head = right_head->next_node;
+            }
+            else{
+                new_tail->next_node = left_head;
+                left_head->prev_node = new_tail;
+                left_head = left_head->next_node;
+            }
+            new_tail = new_tail->next_node;
+        }
+
+        new_tail->next_node = (left_head)? left_head : right_head;
+        new_tail->next_node->prev_node = new_tail;
+        
+        //cut down the need to traverse to find the end node
+        new_tail = (left_head)? mid : right_end;
+        return {dummy.next_node, new_tail};
+    }
+
+public:
+    void merge_sort(){
+        if(length <= 1)return;
+
+        for(int size = 1; size < length; size = size << 1){
+            Node* current = head;
+            Node* new_head = nullptr;
+            Node* new_tail = nullptr;
+
+            while(current){
+                Node* left_head = current;
+                Node* mid, *right_head;
+                tie(mid, right_head) = get_mid_right(left_head, size);
+                
+                Node* right_end, *new_start; 
+                tie(right_end, new_start) = get_new_start(right_head, size);
+
+                Node* merged_head, *merged_tail;
+                tie(merged_head, merged_tail) = merge(left_head, mid, right_head, right_end);
+
+                current = new_start; //update new start
+
+                if(!new_head) new_head = merged_head;
+                if(new_tail) new_tail->next_node = merged_head;
+                merged_head->prev_node = new_tail;
+                new_tail = merged_tail;
+            }
+
+            head = new_head;
+            tail = new_tail;
+        }
+    }
+
+    int size() const { return length; }
+
+    bool isEmpty() const { return length == 0; }
+
+    void printF() const {
+        if(length == 0){
+            cout << "[]" << '\n';
+            return;
+        }
+
+        ostringstream oss;
+        oss << "Head(" << head->value << ')';
+        Node* current = head->next_node;
+
+        while(current){
+            oss << " <- Node(" << current->value << ')';
+            current = current->next_node;
+        }
+
+        cout << oss.str() << '\n';
+    }
+
+    void printB() const {
+        if(length == 0){
+            cout << "[]" << '\n';
+            return;
+        }
+
+        ostringstream oss;
+        oss << "Tail(" << tail->value << ')';
+
+        Node* current = tail->prev_node;
+        while(current){
+            oss << " <- Node(" << current->value << ')';
+            current = current->prev_node;
+        }
+
+        cout << oss.str() << '\n';
+    }
+};
+
+int main() {
+    List<int> l1;
+    int n;
+    cin >> n;
+    for(int i = 0; i < n; i++){
+        int value;
+        cin >> value;
+        l1.push_back(value);
+    }
+
+    l1.merge_sort();
+    l1.printF();
+    l1.printB();
+
+    return 0;
+}
